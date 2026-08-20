@@ -1,11 +1,31 @@
 # std-freestanding-nolibc
 
-`memcpy`, `memmove`, `memset`, `memcmp` and `strlen`, for targets that have no
-C library.
+The C surface a freestanding C++ library still needs — **five functions and four
+headers** — for targets that have no C library.
+
+⭐ **Measured: with this package, 94 of the 103 headers in `std-freestanding`
+compile for a target whose `sysroot` is empty.** Without it, 15 of the 21
+most-used ones do.
+
+The obstacle was never that the subset wants a C library. libc++ ships
+*wrappers* for the C headers — `include/c++/v1/string.h` and its siblings —
+which reach the real header through `#include_next` to obtain `size_t`,
+`mbstate_t`, `time_t` and `EOF`. With no C library the chain has nothing to
+continue to, and the wrapper fails on a missing **type** rather than a missing
+header, which is why the cause is not obvious from the error.
+
+```toml
+# Usually not named directly — the subset's `nolibc` feature brings it:
+[dependencies]
+std-freestanding = { version = "0.4.0", features = ["nolibc"] }
+```
+
+A project that uses no C++ standard library at all can depend on it directly,
+for the five functions alone:
 
 ```toml
 [dependencies]
-std-freestanding-nolibc = "0.1.1"
+std-freestanding-nolibc = "^0.2.0"
 ```
 
 ## ⚠️ For the zero-libc tier only, and the failure mode is silent

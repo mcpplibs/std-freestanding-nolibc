@@ -1,0 +1,20 @@
+import mcpp;
+import std;
+
+// ⚠️ THE HEADERS CANNOT BE HANDED TO A CONSUMER FROM HERE.
+//
+// `include-dir` is package-private by design — the supply-chain rule that keeps
+// a dependency from silently reshaping a consumer's include path. This package
+// therefore only USES its own headers; the subset package asks mcpp where this
+// package landed (`mcpp::dep_dir`) and adds the directory to its own compile,
+// after libc++'s.
+//
+// The order is load-bearing and was measured: libc++ ships wrappers for the C
+// headers (`include/c++/v1/string.h`) which reach the real one through
+// `#include_next`. A directory placed BEFORE libc++'s is skipped by that
+// search, and the wrapper still fails.
+int main() {
+    mcpp::include_dir_after(
+        std::format("{}/include", mcpp::manifest_dir()).c_str());
+    return 0;
+}
