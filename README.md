@@ -5,7 +5,7 @@ C library.
 
 ```toml
 [dependencies]
-std-freestanding-nolibc = "0.1.0"
+std-freestanding-nolibc = "0.1.1"
 ```
 
 ## ⚠️ For the zero-libc tier only, and the failure mode is silent
