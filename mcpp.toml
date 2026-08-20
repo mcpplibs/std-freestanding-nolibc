@@ -1,12 +1,22 @@
 # The five C functions a freestanding C++ translation unit still reaches for,
 # for targets that have no C library to supply them.
 #
-# ⚠️ FOR THE ZERO-LIBC TIER ONLY, AND THE RESTRICTION IS NOT STYLISTIC.
+# ⚠️ FOR THE ZERO-LIBC TIER ONLY, AND THE FAILURE MODE IS SILENT.
 #
-# mcpp contributes a dependency package's object files to the consumer's link
-# unconditionally; there is no archive semantics by which a definition would
-# apply only when the symbol is otherwise missing. A project whose board package
-# links `-lc` therefore gets two definitions of `memcpy` and fails.
+# The first version of this note predicted a duplicate-definition error when a
+# board package also links `-lc`. That prediction was wrong, and measuring it
+# is what found the real hazard.
+#
+# A C library ships as an ARCHIVE, and an archive member is pulled only while
+# the symbol is still undefined. This package's object files are contributed to
+# the link unconditionally, so they define `memcpy` first and the C library's
+# member is never pulled. The build succeeds. Measured on riscv64-none-elf with
+# picolibc present: a cold build links, and `nm` reports exactly one definition
+# of `memcpy` — this one.
+#
+# ⭐ That is worse than an error, not better. The program silently gets the
+# byte-at-a-time implementations below in place of the C library's word-at-a-time
+# and vectorised ones, and nothing reports the substitution.
 #
 # Use this package when the target row's C library has been declined:
 #

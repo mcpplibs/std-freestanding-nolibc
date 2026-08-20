@@ -8,12 +8,23 @@ C library.
 std-freestanding-nolibc = "0.1.0"
 ```
 
-## ⚠️ For the zero-libc tier only
+## ⚠️ For the zero-libc tier only, and the failure mode is silent
 
-mcpp contributes a dependency package's object files to the consumer's link
-unconditionally; there is no archive semantics by which a definition would apply
-only when the symbol is otherwise missing. A project whose board package links
-`-lc` therefore gets two definitions of `memcpy` and fails.
+An earlier version of this note predicted a duplicate-definition error when a
+board package also links `-lc`. That prediction was wrong, and measuring it is
+what found the real hazard.
+
+A C library ships as an **archive**, and an archive member is pulled only while
+the symbol is still undefined. This package's object files enter the link
+unconditionally, so they define `memcpy` first and the C library's member is
+never pulled. The build succeeds.
+
+> Measured on `riscv64-none-elf` with picolibc present: a cold build links, and
+> `nm` reports exactly one definition of `memcpy` — this one.
+
+⭐ **That is worse than an error.** The program silently receives the
+byte-at-a-time implementations below in place of the C library's word-at-a-time
+and vectorised ones, and nothing reports the substitution.
 
 Use this package when the target's C library has been declined:
 
