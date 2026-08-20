@@ -1,0 +1,43 @@
+# The five C functions a freestanding C++ translation unit still reaches for,
+# for targets that have no C library to supply them.
+#
+# ⚠️ FOR THE ZERO-LIBC TIER ONLY, AND THE RESTRICTION IS NOT STYLISTIC.
+#
+# mcpp contributes a dependency package's object files to the consumer's link
+# unconditionally; there is no archive semantics by which a definition would
+# apply only when the symbol is otherwise missing. A project whose board package
+# links `-lc` therefore gets two definitions of `memcpy` and fails.
+#
+# Use this package when the target row's C library has been declined:
+#
+#   [target.riscv64-none-elf]
+#   sysroot = ""
+#
+# Four of the five are an obligation rather than a convenience: [intro.compliance]
+# has a freestanding implementation provide memcpy, memmove, memset and memcmp
+# because the compiler lowers structure assignment, array initialisation and
+# comparison onto them, so a translation unit that names none of them can still
+# require them. `strlen` is the one genuine library call, reached from building
+# a `string_view` out of a character pointer.
+[package]
+namespace   = "mcpplibs"
+name        = "std-freestanding-nolibc"
+version     = "0.1.0"
+description = "memcpy, memmove, memset, memcmp and strlen for targets with no C library"
+license     = "Apache-2.0"
+authors     = ["mcpplibs"]
+repo        = "https://github.com/mcpplibs/std-freestanding-nolibc"
+
+[build]
+# No exceptions and no RTTI: there is no unwinder beneath a target that has no C
+# library, and these definitions may be reached from the compiler's own lowering
+# of language constructs, where a call into an unwinder could not be justified.
+#
+# ⚠️ `-fno-builtin` is load-bearing. Without it a compiler is entitled to
+# recognise the body of `memcpy` as a memcpy and replace it with a call to
+# itself, and the result is an infinite recursion that appears only under
+# optimisation. This is a known hazard of writing these five in C or C++ and is
+# why every C library builds them with the same flag.
+flags = [
+  { glob = "src/**", cxxflags = ["-fno-exceptions", "-fno-rtti", "-fno-builtin"] },
+]
