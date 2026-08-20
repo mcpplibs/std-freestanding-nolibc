@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: the five functions compile and are exported
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      MCPP_VERSION: 2026.8.20.2
+      XLINGS_VERSION: v2026.8.17.2
+      XLINGS_NON_INTERACTIVE: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+
+      - name: Install mcpp
+        run: |
+          xlings update
+          xlings install "mcpp@$MCPP_VERSION" -y -g
+          mcpp --version
+          mcpp self config --mirror GLOBAL
+
+      - name: The package builds for a freestanding target
+        run: mcpp build --target riscv64-none-elf
+
+      # ⚠️ Exported under their C names, which is what the compiler emits calls
+      # to. A C++ mangled definition would compile and satisfy nothing.
+      - name: memcpy, memmove, memset, memcmp and strlen are exported
+        run: |
+          set -euo pipefail
+          NM=$(ls -d "$HOME"/.mcpp/registry/data/xpkgs/xim-x-llvm/*/bin/llvm-nm | head -1)
+          OBJ=$(find target -name "string*.o" | head -1)
+          test -n "$OBJ" || { echo "no object produced"; exit 1; }
+          for s in memcpy memmove memset memcmp strlen; do
+            "$NM" --defined-only "$OBJ" | grep -qE " T $s\$" || {
+              "$NM" --defined-only "$OBJ"; echo "missing: $s"; exit 1; }
+          done
+          echo "all five exported"
